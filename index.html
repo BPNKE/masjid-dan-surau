@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <title>Kalkulator NFA Masjid & Surau</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+      color: #333;
+    }
+
+    h2 {
+      color: #004080;
+      border-bottom: 2px solid #ccc;
+      padding-bottom: 5px;
+    }
+
+    label {
+      margin-top: 15px;
+      display: block;
+      font-weight: bold;
+    }
+
+    input[type="number"], select {
+      padding: 5px;
+      width: 100%;
+      max-width: 200px;
+      margin-top: 5px;
+      margin-bottom: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: #f9f9f9;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #e0eaff;
+    }
+
+    tfoot td {
+      font-weight: bold;
+      background-color: #f1f1f1;
+    }
+
+    .button-container {
+      margin-top: 20px;
+    }
+
+    button {
+      background-color: #004080;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    button:hover {
+      background-color: #0059b3;
+    }
+
+    .warning {
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #ffeeba;
+      border-radius: 4px;
+      display: none;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+  <h2 style="background-color: rgb(178, 232, 245); color: black; text-align: center;">Kalkulator Keluasan Lantai Bersih (NFA) Surau dan Masjid</h2>
+
+  <label for="jenisBangunan" style="background-color: rgb(178, 232, 245);">Jenis Bangunan:</label>
+  <select id="jenisBangunan">
+    <option value="surau">Surau</option>
+    <option value="masjid">Masjid</option>
+  </select>
+
+  <label for="bil_jemaah" style="background-color: rgb(178, 232, 245);">Bilangan Jemaah:</label>
+  <input type="number" id="bil_jemaah" value="0" min="0">
+
+  <label style="background-color: rgb(178, 232, 245);">Tambah Ruang Sirkulasi dan Servis:</label>
+  <label><input type="radio" name="add_option" id="use_default" checked> Sirkulasi 25% + Servis 10%</label>
+  <label><input type="radio" name="add_option" id="use_custom">  Ruang Sirkulasi dan Servis Manual (%):
+    <input type="number" id="custom_percent" value="0" min="0" max="100" disabled>
+  </label>
+
+  <div id="warning" class="warning">⚠️ Jumlah peratusan sirkulasi + servis melebihi 35%!</div>
+
+  <h3 id="titleOutput">Jadual A3.0 (1) - Surau</h3>
+
+  <table id="jadualNFA">
+    <thead>
+  <tr>
+    <th style="background-color: rgb(178, 232, 245);">Bil.</th>
+    <th style="background-color: rgb(178, 232, 245);">Jenis Ruang</th>
+    <th style="background-color: rgb(178, 232, 245);">Formula</th>
+    <th style="background-color: rgb(178, 232, 245);">Keluasan (m²)</th>
+  </tr>
+</thead>
+
+    <tbody id="resultBody">
+      <tr><td colspan="3">Sila masukkan bilangan jemaah.</td></tr>
+    </tbody>
+<tfoot>
+  <tr>
+    <td></td>
+    <td><strong>Jumlah Keluasan</strong></td>
+    <td></td>
+    <td id="totalArea"><strong>0.00 m²</strong></td>
+  </tr>
+</tfoot>
+  </table>
+
+  <div class="button-container">
+    <button onclick="printTable()">🖨️ Cetak</button>
+    <button onclick="exportToPDF()">📄 Export PDF</button>
+  </div>
+
+  <script>
+    function updateCalc() {
+  const jemaah = parseInt(document.getElementById("bil_jemaah").value || 0);
+  const jenis = document.getElementById("jenisBangunan").value;
+  const isSurau = jenis === "surau";
+  const tbody = document.getElementById("resultBody");
+  const warning = document.getElementById("warning");
+  tbody.innerHTML = "";
+  warning.style.display = "none";
+  let total = 0;
+
+  document.getElementById("titleOutput").textContent = isSurau
+    ? "Jadual A3.0 (1) - Surau"
+    : "Jadual A3.0 (2) - Masjid";
+
+  if (jemaah <= 0) {
+    tbody.innerHTML = '<tr><td colspan="4">Sila masukkan bilangan jemaah.</td></tr>';
+    document.getElementById("totalArea").textContent = "0.00 m²";
+    return;
+  }
+
+  const data = [];
+  const ruangSolat = 1.4 * jemaah;
+  data.push({ label: "Ruang solat", formula: `1.4 × ${jemaah}`, area: ruangSolat });
+  total += ruangSolat;
+
+  if (isSurau) {
+    data.push({ label: "Ruang pentadbiran", formula: "Tetap", area: 10 });
+    total += 10;
+  } else {
+    data.push({ label: "Ruang pentadbiran", formula: "Rujuk A1.0", area: 0 });
+
+    const bilMesyuaratJemaah = Math.min(jemaah, 20);
+    const bilMesyuarat = 1.6 * bilMesyuaratJemaah;
+    data.push({ label: "Bilik mesyuarat", formula: `1.6 × ${bilMesyuaratJemaah}`, area: bilMesyuarat });
+    total += bilMesyuarat;
+
+    const rsbJemaah = Math.min(jemaah, 300);
+    const ruangSerbaguna = 0.95 * rsbJemaah;
+    data.push({ label: "Ruang serbaguna", formula: `0.95 × ${rsbJemaah}`, area: ruangSerbaguna });
+    total += ruangSerbaguna;
+
+    const bacaanJemaah = Math.floor(jemaah * 0.02);
+    const ruangBacaan = 1.85 * bacaanJemaah;
+    data.push({ label: "Ruang bacaan terbuka", formula: `1.85 × ${bacaanJemaah}`, area: ruangBacaan });
+    total += ruangBacaan;
+
+    data.push({ label: "Bilik Khas Tetamu Kehormat", formula: "Tetap", area: 30 });
+    total += 30;
+  }
+
+  if (jemaah >= 200) {
+    const ruangPersediaan = 0.4 * jemaah;
+    data.push({ label: "Bilik/Ruang persediaan", formula: `0.4 × ${jemaah}`, area: ruangPersediaan });
+    total += ruangPersediaan;
+  }
+
+  // Papar jumlah jemaah
+  tbody.innerHTML += `<tr><td colspan="4"><strong>Bilangan Jemaah: ${jemaah}</strong></td></tr>`;
+
+  // Isi data berpenomboran
+  data.forEach((item, index) => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${item.label}</td>
+        <td>${item.formula}</td>
+        <td>${item.area.toFixed(2)}</td>
+      </tr>
+    `;
+  });
+
+// Baris Jumlah Asas (tanpa nombor) — selari dengan tajuk lajur
+tbody.innerHTML += `
+  <tr>
+    <td></td>
+    <td><strong>Jumlah Asas Sebelum Tambahan (NFA)</strong></td>
+    <td></td>
+    <td>${total.toFixed(2)}</td>
+  </tr>
+`;
+
+let currentIndex = data.length + 1;
+
+if (document.getElementById("use_default").checked) {
+  const sirkulasi = total * 0.25;
+  const servis = total * 0.10;
+  extra = sirkulasi + servis;
+
+  tbody.innerHTML += `
+    <tr><td>${currentIndex++}</td><td>Sirkulasi (25%)</td><td>25% × Jumlah Asas</td><td>${sirkulasi.toFixed(2)}</td></tr>
+    <tr><td>${currentIndex++}</td><td>Servis (10%)</td><td>10% × Jumlah Asas</td><td>${servis.toFixed(2)}</td></tr>
+  `;
+} else {
+  const percent = parseFloat(document.getElementById("custom_percent").value || 0);
+  if (percent > 35) warning.style.display = "block";
+  extra = total * (percent / 100);
+
+  tbody.innerHTML += `
+    <tr><td>${currentIndex++}</td><td>Ruang Sirkulasi & Servis Manual (${percent}%)</td><td>${percent}% × Jumlah Asas</td><td>${extra.toFixed(2)}</td></tr>
+  `;
+  }
+
+  const grandTotal = total + extra;
+  document.getElementById("totalArea").textContent = grandTotal.toFixed(2) + " m²";
+}
+
+function printTable() {
+  const title = document.getElementById("titleOutput").outerHTML;
+  const tableHTML = document.getElementById("jadualNFA").outerHTML;
+
+  const style = `
+    <style>
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; color: #333; }
+      table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #f9f9f9; }
+      th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+      th { background-color: #e0eaff; }
+      tfoot td { font-weight: bold; background-color: #f1f1f1; }
+      h3 { color: #004080; border-bottom: 2px solid #ccc; padding-bottom: 5px; }
+    </style>
+  `;
+
+  const printWindow = window.open("", "", "width=900,height=700");
+  printWindow.document.write(`<html><head><title>Cetak Jadual</title>${style}</head><body>${title}${tableHTML}</body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+  printWindow.close();
+}
+
+function exportToPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF("p", "mm", "a4");
+
+  const title = document.getElementById("titleOutput").textContent;
+  const table = document.getElementById("jadualNFA");
+
+const tbodyRows = table.querySelectorAll("tbody tr");
+const rows = [];
+
+tbodyRows.forEach((row) => {
+  const cells = row.querySelectorAll("td");
+
+  if (cells.length === 1) {
+    const text = cells[0].textContent.trim();
+    if (text.toLowerCase().includes("bilangan jemaah")) {
+      rows.push(["", text, "", ""]);
+    }
+  } else {
+    const rowData = [...cells].map(cell => cell.textContent.trim());
+    while (rowData.length < 4) rowData.push("");
+    rows.push(rowData);
+  }
+});
+
+
+
+const tfootRow = [
+  "", // ← Tambah ruang untuk kolum Bil.
+  "Jumlah Keluasan",
+  "",
+  document.getElementById("totalArea").textContent
+];
+
+
+const headers = [["Bil.", "Jenis Ruang", "Formula", "Keluasan (m²)"]];
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0); // pastikan font hitam
+  doc.setFontSize(14);
+  doc.text(title, 14, 15);
+
+  doc.autoTable({
+    startY: 20,
+    head: headers,
+    body: rows,
+    theme: "grid",
+    styles: {
+      font: "helvetica",
+      fontSize: 10,
+      textColor: [0, 0, 0],        // pastikan font hitam
+      cellPadding: 3
+    },
+    headStyles: {
+      fillColor: [224, 234, 255],
+      textColor: [0, 0, 0],        // pastikan header hitam
+      fontStyle: "bold",
+      halign: "left"
+    },
+    bodyStyles: {
+      halign: "left",
+      textColor: [0, 0, 0]         // pastikan isi jadual hitam
+    },
+    foot: [tfootRow],
+    footStyles: {
+      fillColor: [241, 241, 241],
+      fontStyle: "bold",
+      textColor: [0, 0, 0]         // pastikan footer hitam
+    }
+  });
+
+  doc.save("Jadual_Keluasan_NFA.pdf");
+    }
+
+    document.getElementById("jenisBangunan").addEventListener("change", updateCalc);
+    document.getElementById("bil_jemaah").addEventListener("input", updateCalc);
+    document.getElementById("custom_percent").addEventListener("input", updateCalc);
+    document.getElementById("use_default").addEventListener("change", () => {
+      document.getElementById("custom_percent").disabled = true;
+      updateCalc();
+    });
+    document.getElementById("use_custom").addEventListener("change", () => {
+      document.getElementById("custom_percent").disabled = false;
+      updateCalc();
+    });
+
+    window.onload = updateCalc;
+  </script>
+</body>
+</html>
