@@ -2,6 +2,10 @@
 <html lang="ms">
 <head>
   <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Button Example</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Optional if using external CSS -->
+</head>
   <title>Kalkulator NFA Masjid & Surau</title>
   <style>
     body {
@@ -81,11 +85,31 @@
       border-radius: 4px;
       display: none;
     }
+
+.home-button {
+    background-color: #4CAF50; /* Blue background */
+    color: white; /* White text */
+    padding: 10px 20px; /* Padding around the text */
+    text-align: center; /* Centered text */
+    text-decoration: none; /* Remove underline from the link */
+    font-size: 16px;
+    border-radius: 5px; /* Rounded corners */
+    margin: 10px;
+}
+
+.home-button:hover {
+    background-color: #45a049; /* Darker green when hovering */
+}
+
+
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
+   <header>
+        <a href="https://bpnke.github.io/main/" class="home-button" style="text-align: center; background-color: rgb(178, 232, 245); color: black; font-family: Arial;">Home</a>
+    </header>
 
   <h2 style="background-color: rgb(178, 232, 245); color: black; text-align: center;">Kalkulator Keluasan Lantai Bersih (NFA) Surau dan Masjid</h2>
 
